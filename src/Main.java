@@ -1,5 +1,6 @@
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.sql.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -54,6 +55,61 @@ public class Main {
             salle.trouverAdherent(999);
         } catch (AdherentIntrouvableException e) {
             System.out.println(e.getMessage());
+        }
+
+        try {
+            String driverClassName = "com.mysql.jdbc.Driver";
+            String dbNameRoot = "mysql";
+            String login = "root";
+            String motdepasse = "Root1414&*";
+            String urlRoot = "jdbc:mysql://localhost:3306/" + dbNameRoot + "?useSSL=false&serverTimezone=UTC"; //j'ai mis SSL à false car j'ai zscaler qui bloque sinon
+
+            Class.forName(driverClassName);
+
+            Connection connRoot = DriverManager.getConnection(urlRoot, login, motdepasse);
+            Statement stRoot = connRoot.createStatement();
+            stRoot.executeUpdate("CREATE DATABASE IF NOT EXISTS fitnesspark");
+            connRoot.close();
+
+            String dbName = "fitnesspark";
+            String url = "jdbc:mysql://localhost:3306/" + dbName + "?useSSL=false&serverTimezone=UTC";
+            Connection conn = DriverManager.getConnection(url, login, motdepasse);
+
+            Statement st = conn.createStatement();
+
+            String sqlAdherent = "CREATE TABLE IF NOT EXISTS Adherent (id INT PRIMARY KEY, nom VARCHAR(100) NOT NULL)";
+            st.executeUpdate(sqlAdherent);
+
+            String sqlSeance = "CREATE TABLE IF NOT EXISTS Seance (id INT PRIMARY KEY, nom VARCHAR(100) NOT NULL, dateHeure DATETIME, capaciteMax INT)";
+            st.executeUpdate(sqlSeance);
+
+            String sqlPrestation = "CREATE TABLE IF NOT EXISTS Prestation (code VARCHAR(20) PRIMARY KEY, libelle VARCHAR(100) NOT NULL, prix DOUBLE)";
+            st.executeUpdate(sqlPrestation);
+
+            String sqlReservation = "CREATE TABLE IF NOT EXISTS Reservation (id INT PRIMARY KEY AUTO_INCREMENT, adherent_id INT, seance_id INT, statut VARCHAR(20), FOREIGN KEY (adherent_id) REFERENCES Adherent(id), FOREIGN KEY (seance_id) REFERENCES Seance(id))";
+            st.executeUpdate(sqlReservation);
+
+            String sqlReservationPrestation = "CREATE TABLE IF NOT EXISTS ReservationPrestation (reservation_id INT, prestation_code VARCHAR(20), FOREIGN KEY (reservation_id) REFERENCES Reservation(id), FOREIGN KEY (prestation_code) REFERENCES Prestation(code))";
+            st.executeUpdate(sqlReservationPrestation);
+
+            st.executeUpdate("DELETE FROM Adherent");
+            st.executeUpdate("INSERT INTO Adherent (id, nom) VALUES (" + adherentBasic.getId() + ", '" + adherentBasic.getNom() + "')");
+            st.executeUpdate("INSERT INTO Adherent (id, nom) VALUES (" + adherentPremium.getId() + ", '" + adherentPremium.getNom() + "')");
+
+            ResultSet rs = st.executeQuery("SELECT id, nom FROM Adherent");
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String nom = rs.getString("nom");
+                System.out.println("Adherent en base : " + id + " - " + nom);
+            }
+            rs.close();
+
+            conn.close();
+            System.out.println("Connexion MySQL et test JDBC OK");
+        } catch (ClassNotFoundException e) {
+            System.err.println("Driver JDBC MySQL introuvable : " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL : " + e.getMessage());
         }
     }
 }
